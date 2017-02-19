@@ -121,6 +121,7 @@ t_io_infos *file_infos;    /* input and output files used by the compiler */
 %token RETURN
 %token READ
 %token WRITE
+%token BIT_OP
 
 %token <label> DO
 %token <while_stmt> WHILE
@@ -151,6 +152,7 @@ t_io_infos *file_infos;    /* input and output files used by the compiler */
 %left MINUS PLUS
 %left MUL_OP DIV_OP
 %right NOT
+%right BIT_OP
 
 /*=========================================================================
                          BISON GRAMMAR
@@ -484,7 +486,47 @@ exp: NUMBER      { $$ = create_expression ($1, IMMEDIATE); }
                         else
                            $$ = create_expression (0, IMMEDIATE);
    }
-   | NOT_OP IDENTIFIER  {
+   | LPAR BIT_OP RPAR IDENTIFIER  {
+                           t_axe_variable* arr = getVariable(program, $4);
+                           int outreg;
+                           
+                           if(arr->isArray)
+                           {
+                              outreg = getNewRegister(program);
+                                                            
+                              int i, elem;
+                              t_axe_expression idx;
+                              for(i = 31; i >= 0; i--)
+                              {
+                                if(i < arr->arraySize)
+                                {
+                                  // load
+                                  idx = create_expression(i, IMMEDIATE);
+                                  elem = loadArrayElement(program, $4, idx);
+                                  
+                                  // test
+                                  t_axe_label* lskip = newLabel(program);
+                                  gen_addi_instruction(program, elem, elem, 0);
+                                  // jump if 0-flag is set, ie if exp is 0
+                                  gen_beq_instruction(program, lskip, 0);
+                                  
+                                  // set bit i
+                                  gen_addi_instruction(program, outreg, outreg, 1);
+                                
+                                  // r_shift 1
+                                  assignLabel(program, lskip);
+                                  if(i > 0)
+                                    gen_shli_instruction(program, outreg, outreg, 1);
+                                }
+                              }
+                           }
+                           else
+                              outreg = get_symbol_location(program, $4, 0);
+                           
+                           $$ = create_expression(outreg, REGISTER);
+                           free($4);
+   }
+   | NOT_OP IDENTIFIER {
                            int identifier_location;
                            int output_register;
    

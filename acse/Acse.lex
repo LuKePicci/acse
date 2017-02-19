@@ -76,6 +76,7 @@ ID       [a-zA-Z_][a-zA-Z0-9_]*
 "&"               { return AND_OP; }
 "|"               { return OR_OP; }
 "!"               { return NOT_OP; }
+"bit"             { return BIT_OP; }
 "="               { return ASSIGN; }
 "<"               { return LT; }
 ">"               { return GT; }
